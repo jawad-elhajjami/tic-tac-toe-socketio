@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+    <title>Tic Tac Toe</title>
+</head>
+<body class="flex items-center flex-col justify-center min-h-screen">
+    
+    <div class="lg:min-w-lg max-w-md mb-8">
+        <h1 class="text-center font-bold text-4xl mb-8">Tic-Tac-Toe</h1>
+        
+        <!-- Show turn -->
+        
+        <p class="text-center mb-8" id="turn"></p>
+        <p class="font-bold text-center text-green-500 mb-8" id="result"></p>
+        <a href="" id="restart" class="text-center block bg-green-500 p-4 text-white rounded-lg font-bold hover:bg-green-600 duration-200">Restart game</a>
+
+    </div>
+    
+    <!-- Form container -->
+
+    <div id="form_container" class="lg:min-w-lg max-w-md mb-8">
+        
+
+        <form action="">
+            <div class="flex flex-col">
+                <label for="username" class="mb-4 text-gray-900 font-medium">
+                    Username
+                </label>
+                <input type="text" placeholder="Username, ex: johndoe123" name="username" id="username" class="p-4 border-2 rounded-lg placeholder-gray-900/70 border-gray-900" required>
+
+                <small id="error" class="mb-4 text-red-600"></small>
+
+                <button type="submit" class="bg-gray-800 p-4 text-white rounded-lg cursor-pointer hover:bg-gray-700 duration-200" id="start_game_btn">Start game</button>
+
+            </div>
+        </form>
+    </div>
+
+    <!-- Board container -->
+
+    <div id="board_container" class="grid grid-cols-3 grid-rows-3">
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="1" data-row="1" data-col="1"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="2" data-row="1" data-col="2"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="3" data-row="1" data-col="3"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="4" data-row="2" data-col="1"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="5" data-row="2" data-col="2"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="6" data-row="2" data-col="3"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="7" data-row="3" data-col="1"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="8" data-row="3" data-col="2"></button>
+        <button class="cursor-pointer tile w-20 h-20 border border-gray-900 bg-white font-bold text-2xl" id="9" data-row="3" data-col="3"></button>
+    </div>
+
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="index.js"></script>
+
+</body>
+</html>
