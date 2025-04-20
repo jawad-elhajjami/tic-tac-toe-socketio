@@ -6,6 +6,12 @@ const io = require('socket.io')(http, {
     }
 });
 
+let board = [
+    ['','',''],
+    ['','',''],
+    ['','','']
+];
+
 let players = {};
 io.on('connection', (socket) => {
     socket.on('user_join', (username)=>{
@@ -32,10 +38,30 @@ io.on('connection', (socket) => {
         
     })
 
+    socket.on('move_made', (obj) => {
+        // extract coordinates
+        let {row, col} = obj.move;
+        let symbol = obj.symbol;
+        
+        // update the board
+        board[row - 1][col - 1] = symbol;
+
+        // emit new board to the client
+        io.emit('board_change', board);
+
+        console.log(board)
+        // console.log(row, col, symbol);
+    })
+
     socket.on('disconnect', () => {
         console.log(`Player disconnected ! : ${socket.id}`);
         delete players[socket.id];
         io.emit('players_list_update',players);
+        board = [
+            ['','',''],
+            ['','',''],
+            ['','','']
+        ];
     })
 
 })

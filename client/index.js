@@ -1,3 +1,4 @@
+
 // HTML ELEMENTS
 const username = document.getElementById('username');
 const start_game_btn = document.getElementById('start_game_btn');
@@ -82,20 +83,27 @@ const handleTileClick = (event) => {
     if(!check_if_clicked(clickedTile)){
         let row = parseInt(event.target.dataset.row);
         let col = parseInt(event.target.dataset.col);
-        clickedTile.textContent = currentLetter;
-        
-        
+        // clickedTile.textContent = currentLetter;
+
+        // emit click event to the server
+        let move_obj = {
+            username: username.value,
+            symbol : currentLetter,
+            move: {row, col},
+        }
+        socket.emit('move_made',move_obj);
+
         // switch letter (X/O)
-        currentLetter = currentLetter === 'X' ? currentLetter = 'O' : 'X';
-        color = color === 'text-blue-500' ? color = 'text-red-500' : 'text-blue-500';
-        clickedTile.setAttribute('disabled', true);
-        clickedTile.classList.add(color);
-        clickedTile.classList.add('clicked');
-        board[row - 1][col - 1] = clickedTile.textContent;
-        turn.textContent = `it's (${currentLetter}'s turn) `
+        // currentLetter = currentLetter === 'X' ? currentLetter = 'O' : 'X';
+        // color = color === 'text-blue-500' ? color = 'text-red-500' : 'text-blue-500';
+        // clickedTile.setAttribute('disabled', true);
+        // clickedTile.classList.add(color);
+        // clickedTile.classList.add('clicked');
+        // board[row - 1][col - 1] = clickedTile.textContent;
+        // turn.textContent = `it's (${currentLetter}'s turn) `
 
         // constantly check winner on each turn
-        check_winner();
+        // check_winner();
         
     }else alert('already clicked here !');
 }
@@ -164,12 +172,27 @@ socket.on('players_list_update', (players)=>{
         el.textContent = `Player ${index + 1} : [${user.username}][${user.symbol}]`;
         user_container.appendChild(el);
     })
+    const len = Object.values(players).length;
+    if(len === 2){
+        board_container.classList.remove('hidden');
+    }else{
+        const msg = document.createElement('p');
+        msg.textContent = 'Waiting for another player...';
+        user_container.appendChild(msg)
+    }
 })
 
 socket.on('symbol_assigned', (symbol) => {
     currentLetter = symbol;
-    board_container.classList.remove('hidden');
     reset_errors();
+})
+
+socket.on('board_change', (board) => {
+    tiles.forEach(tile => {
+        const row = parseInt(tile.dataset.row) - 1;
+        const col = parseInt(tile.dataset.col) - 1;
+        tile.textContent = board[row][col];
+    })
 })
 
 socket.on('game_full', () => {
