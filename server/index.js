@@ -9,17 +9,30 @@ const io = require('socket.io')(http, {
 let players = {};
 io.on('connection', (socket) => {
     socket.on('user_join', (username)=>{
+        
         let players_count = Object.keys(players).length;
+        
         if(players_count >= 2){
             socket.emit('game_full');
             return;
         }
-        const symbol = players_count === 0 ? 'X' : 'O';
-        players[socket.id] = {username, symbol};
-        console.log(`Player ${username} joined as ${symbol}`);
-        console.log(players);
-        socket.emit('symbol_assigned', symbol);
-        io.emit('players_list_update',players);
+
+        const alreadyExists = () => {
+            return Object.values(players).some(val => val.username.toLowerCase() === username.toLowerCase());
+        }
+
+        if(!alreadyExists()){
+            const symbol = players_count === 0 ? 'X' : 'O';
+            players[socket.id] = {username, symbol};
+            
+            console.log(`Player ${username} joined as ${symbol}`);
+            console.log(Object.values(players));
+            socket.emit('symbol_assigned', symbol);
+            io.emit('players_list_update',players);
+        }else{
+            socket.emit('username_alreay_exits');
+        }
+        
     })
 
     socket.on('disconnect', () => {

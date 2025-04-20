@@ -16,12 +16,11 @@ let currentLetter = 'X';
 let color = 'text-blue-500';
 let winner;
 let players_count;
+let USER_ALREADY_EXISTS = false;
 
-socket.on('players_list_update', (players) => {
-    players_count = Object.keys(players).length;
-    console.log(players_count);
+socket.on('username_alreay_exits', () => {
+    USER_ALREADY_EXISTS = true;
 })
-
 
 let board = [
     ['','',''],
@@ -58,30 +57,26 @@ const reset_errors = () =>{
 init();
 
 const validate_username = () => {
+    let message;
     if(username.value === '' || username.value == null){
-        error_container.textContent = 'Username is required !'
-        return 'Username is required !';
+        message = 'Username is required !';
+        error_container.textContent = message;
+        return message;
     }
-    return 'Valid'
+    else if(USER_ALREADY_EXISTS){
+        message = 'Username already exists !'
+        error_container.textContent = message;
+        return message;
+    }
+    return 'Valid';
 }
 
 const start_game = () => {
-    
-    // make sure only 2 players can join and play together
-    if(players_count === 2){
-        alert('Game is full at the moment !')
-        return;
-    }
-
     if(validate_username() === 'Valid'){
-
-        socket.emit('user_join', username.value)
-
-        board_container.classList.remove('hidden');
+        socket.emit('user_join', username.value);
         reset_errors();
     }
     else hide_board();
-    
 }
 
 
@@ -116,10 +111,19 @@ const handleTileClick = (event) => {
     }else alert('already clicked here !');
 }
 
+const preventClicks = () => {
+    if(winner !== undefined){
+        tiles.forEach((tile) => {
+            tile.setAttribute('disabled', true);
+        })
+    }
+}
+
 const resetGame = () => {
     turn.remove();
     result.textContent = `${winner} is the Winner`
-    board_container.remove();
+    // board_container.remove();
+    preventClicks();
     form_container.remove();
     restart.classList.remove('hidden');
 }
@@ -143,6 +147,7 @@ const check_winner = () => {
             result.textContent = `It's a draw !`
             return;
         }return false
+
 }
 
 // events
@@ -160,18 +165,14 @@ socket.on('connect', () => {
     console.log('Connected to websocket server')
 })
 
-socket.on('user_join', username => {
-    let el = document.createElement('p');
-    el.textContent = username;
-    document.body.appendChild(el);
-})
-
 socket.on('symbol_assigned', (symbol) => {
     currentLetter = symbol;
     console.log('You are ', symbol);
+    board_container.classList.remove('hidden');
+    reset_errors();
 })
 
-// socket.on('game_full', () => {
-//     alert('You cant play now join later please !');
-//     return;
-// });
+socket.on('game_full', () => {
+    alert('You cant play now join later please !');
+    return;
+});
