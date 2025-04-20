@@ -1,13 +1,3 @@
-// imports
-const socket = io('http://localhost:8080');
-socket.on('connect', () => {
-    console.log('Connected to websocket server')
-})
-
-socket.on('user_join', username => {
-    alert(`${username} joined`);
-})
-
 // HTML ELEMENTS
 const username = document.getElementById('username');
 const start_game_btn = document.getElementById('start_game_btn');
@@ -19,10 +9,18 @@ const restart = document.getElementById('restart');
 const result = document.getElementById('result');
 const tiles = document.querySelectorAll('.tile');
 
+const socket = io('http://localhost:8080');
+
 // GLOBAL VARS
 let currentLetter = 'X';
 let color = 'text-blue-500';
 let winner;
+let players_count;
+
+socket.on('players_list_update', (players) => {
+    players_count = Object.keys(players).length;
+    console.log(players_count);
+})
 
 
 let board = [
@@ -69,6 +67,12 @@ const validate_username = () => {
 
 const start_game = () => {
     
+    // make sure only 2 players can join and play together
+    if(players_count === 2){
+        alert('Game is full at the moment !')
+        return;
+    }
+
     if(validate_username() === 'Valid'){
 
         socket.emit('user_join', username.value)
@@ -151,3 +155,23 @@ start_game_btn.addEventListener('click', (event) => {
 tiles.forEach((tile) => {
     tile.addEventListener('click', (event) => handleTileClick(event))
 })
+
+socket.on('connect', () => {
+    console.log('Connected to websocket server')
+})
+
+socket.on('user_join', username => {
+    let el = document.createElement('p');
+    el.textContent = username;
+    document.body.appendChild(el);
+})
+
+socket.on('symbol_assigned', (symbol) => {
+    currentLetter = symbol;
+    console.log('You are ', symbol);
+})
+
+// socket.on('game_full', () => {
+//     alert('You cant play now join later please !');
+//     return;
+// });
