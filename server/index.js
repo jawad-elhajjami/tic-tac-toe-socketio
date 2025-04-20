@@ -24,9 +24,6 @@ io.on('connection', (socket) => {
         if(!alreadyExists()){
             const symbol = players_count === 0 ? 'X' : 'O';
             players[socket.id] = {username, symbol};
-            
-            console.log(`Player ${username} joined as ${symbol}`);
-            console.log(Object.values(players));
             socket.emit('symbol_assigned', symbol);
             io.emit('players_list_update',players);
         }else{

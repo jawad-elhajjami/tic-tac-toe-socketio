@@ -7,20 +7,16 @@ const error_container = document.getElementById('error');
 const turn = document.getElementById('turn');
 const restart = document.getElementById('restart');
 const result = document.getElementById('result');
+const user_container = document.getElementById('user_container');
 const tiles = document.querySelectorAll('.tile');
 
 const socket = io('http://localhost:8080');
 
 // GLOBAL VARS
-let currentLetter = 'X';
+let currentLetter;
 let color = 'text-blue-500';
 let winner;
 let players_count;
-let USER_ALREADY_EXISTS = false;
-
-socket.on('username_alreay_exits', () => {
-    USER_ALREADY_EXISTS = true;
-})
 
 let board = [
     ['','',''],
@@ -56,29 +52,22 @@ const reset_errors = () =>{
 
 init();
 
-const validate_username = () => {
-    let message;
-    if(username.value === '' || username.value == null){
-        message = 'Username is required !';
-        error_container.textContent = message;
-        return message;
-    }
-    else if(USER_ALREADY_EXISTS){
-        message = 'Username already exists !'
-        error_container.textContent = message;
-        return message;
-    }
-    return 'Valid';
+const hide_board = () => {
+    board_container.classList.add('hidden');
 }
+
 
 const start_game = () => {
-    if(validate_username() === 'Valid'){
-        socket.emit('user_join', username.value);
-        reset_errors();
+    const name = username.value.trim();
+    if (name === '') {
+        error_container.textContent = 'Username is required!';
+        return;
     }
-    else hide_board();
-}
 
+    // request to join
+    socket.emit('user_join', name);
+
+}
 
 // game logic
 const check_if_clicked = (tile) => {
@@ -122,7 +111,6 @@ const preventClicks = () => {
 const resetGame = () => {
     turn.remove();
     result.textContent = `${winner} is the Winner`
-    // board_container.remove();
     preventClicks();
     form_container.remove();
     restart.classList.remove('hidden');
@@ -165,9 +153,21 @@ socket.on('connect', () => {
     console.log('Connected to websocket server')
 })
 
+socket.on('username_already_exists', () => {
+    error_container.textContent = 'Username already exists!';
+});
+
+socket.on('players_list_update', (players)=>{
+    user_container.textContent = '';
+    Object.values(players).forEach((user, index) =>{
+        const el = document.createElement('p');
+        el.textContent = `Player ${index + 1} : [${user.username}][${user.symbol}]`;
+        user_container.appendChild(el);
+    })
+})
+
 socket.on('symbol_assigned', (symbol) => {
     currentLetter = symbol;
-    console.log('You are ', symbol);
     board_container.classList.remove('hidden');
     reset_errors();
 })
