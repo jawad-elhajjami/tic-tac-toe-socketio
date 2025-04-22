@@ -9,27 +9,82 @@ const turn_indicator = document.getElementById('turn');
 const restart_btn = document.getElementById('restart');
 const result = document.getElementById('result');
 const user_container = document.getElementById('user_container');
-let tiles = document.querySelectorAll('.tile');
 
 // Socket connection - use window.location to make it work in production
 const socket = io('http://localhost:8080');
 
+// Game state constants (must match server)
+const GAME_STATES = {
+    WAITING: 'waiting',
+    PLAYING: 'playing',
+    ENDED: 'ended',
+    RESETTING: 'resetting'
+};
+
 // GLOBAL VARS
-const BOARD_SIZE = 9;
-let assignedSymbol;
-let winner;
-let players_count;
-let currentGameState = 'waiting'; // 'waiting', 'playing', 'ended'
+let assignedSymbol = null;
+let currentGameState = GAME_STATES.WAITING;
+let isResetting = false;
+let players = {};
+let boardData = [
+    ['', '', ''],
+    ['', '', ''],
+    ['', '', '']
+];
 
 // Initialize game
 const init = () => {
+    // Create game board
+    generateBoard();
+    
+    // Hide elements initially
     board_container.classList.add('hidden');
     restart_btn.classList.add('hidden');
     game_result.classList.add('hidden');
+    error_container.classList.add('hidden');
+    
+    // Reset text fields
     result.textContent = '';
-    currentGameState = 'waiting';
+    turn_indicator.textContent = '';
+    
+    // Set initial game state
+    currentGameState = GAME_STATES.WAITING;
+    
+    // Update UI based on initial state
     updateUIForGameState();
-}
+    
+    console.log('Game initialized');
+};
+
+// Complete client-side reset
+const completeReset = () => {
+    // Reset all visuals
+    game_result.classList.add('hidden');
+    game_result.textContent = '';
+    game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md hidden';
+    
+    result.textContent = '';
+    turn_indicator.textContent = '';
+    turn_indicator.className = 'text-center mb-8';
+    turn_indicator.classList.remove('pulse-text');
+    
+    // Reset board visuals
+    document.querySelectorAll('.tile').forEach(tile => {
+        tile.textContent = '';
+        tile.classList.remove('clicked', 'winning-tile', 'pulse-animation', 'shake-animation', 
+                             'opacity-80', 'x-symbol', 'o-symbol', 'last-move');
+        tile.removeAttribute('disabled');
+    });
+    
+    // Reset local data
+    boardData = [
+        ['', '', ''],
+        ['', '', ''],
+        ['', '', '']
+    ];
+    
+    console.log('Client-side reset complete');
+};
 
 // Create the game board
 const generateBoard = () => {
@@ -55,23 +110,13 @@ const generateBoard = () => {
             board_container.appendChild(TILE_HTML_ELEMENT);
         }
     }
-    
-    // Update the reference to the tiles
-    tiles = document.querySelectorAll('.tile');
-}
-
-// Hide form and show game board
-const showGameBoard = () => {
-    form_container.classList.add('hidden');
-    board_container.classList.remove('hidden');
-    restart_btn.classList.remove('hidden');
-}
+};
 
 // Reset errors
 const resetErrors = () => {
     error_container.textContent = '';
     error_container.classList.add('hidden');
-}
+};
 
 // Show error message
 const showError = (message) => {
@@ -82,7 +127,7 @@ const showError = (message) => {
     setTimeout(() => {
         form_container.classList.remove('shake-animation');
     }, 500);
-}
+};
 
 // Start game function
 const startGame = (event) => {
@@ -96,16 +141,17 @@ const startGame = (event) => {
     
     // Request to join
     socket.emit('user_join', name);
-}
+};
 
 // Check if a tile has been clicked
 const isTileClicked = (tile) => {
     return tile.classList.contains('clicked');
-}
+};
 
 // Handle tile click
 const handleTileClick = (event) => {
-    if (currentGameState !== 'playing') return;
+    // Don't process clicks if game isn't in play state or is resetting
+    if (currentGameState !== GAME_STATES.PLAYING || isResetting) return;
     
     let clickedTile = event.target;
     if(!isTileClicked(clickedTile)){
@@ -130,23 +176,23 @@ const handleTileClick = (event) => {
             clickedTile.classList.remove('shake-animation');
         }, 500);
     }
-}
+};
 
 // Prevent further clicks on the board
 const preventClicks = () => {
-    tiles.forEach(tile => {
+    document.querySelectorAll('.tile').forEach(tile => {
         tile.setAttribute('disabled', true);
         tile.classList.add('opacity-80');
     });
-}
+};
 
 // Enable clicks on the board
 const enableClicks = () => {
-    tiles.forEach(tile => {
+    document.querySelectorAll('.tile').forEach(tile => {
         tile.removeAttribute('disabled');
         tile.classList.remove('opacity-80');
     });
-}
+};
 
 // Highlight winning combination
 const highlightWinningCombo = (combo) => {
@@ -162,112 +208,24 @@ const highlightWinningCombo = (combo) => {
             tile.classList.add('winning-tile');
         }
     });
-}
+};
 
-// Update UI based on game state
-const updateUIForGameState = () => {
-    switch(currentGameState) {
-        case 'waiting':
-            form_container.classList.remove('hidden');
-            board_container.classList.add('hidden');
-            restart_btn.classList.add('hidden');
-            break;
-        case 'playing':
-            form_container.classList.add('hidden');
-            board_container.classList.remove('hidden');
-            restart_btn.classList.remove('hidden');
-            enableClicks();
-            break;
-        case 'ended':
-            preventClicks();
-            restart_btn.classList.remove('hidden');
-            break;
-    }
-}
-
-// Reset the game
-const resetGame = () => {
-    // Ask server to reset the game
-    socket.emit('reset_game');
-    
-    // Reset local UI
-    game_result.classList.add('hidden');
-    game_result.textContent = '';
-    game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md hidden'; // Reset classes
-    result.textContent = '';
-    turn_indicator.textContent = '';
-    turn_indicator.classList.remove('pulse-text'); // Stop animation
-    
-    // Reset board visuals
-    tiles.forEach(tile => {
-        tile.textContent = '';
-        tile.classList.remove('clicked', 'winning-tile', 'pulse-animation', 'shake-animation', 'opacity-80', 'x-symbol', 'o-symbol', 'last-move');
-        tile.removeAttribute('disabled');
-    });
-    
-    // Don't set game state here - let the server drive it
-    // We'll update game state when we receive the game_reset event
-}
-
-// Initialize game on load
-init();
-generateBoard();
-
-// Event listeners
-start_game_btn.addEventListener('click', startGame);
-restart_btn.addEventListener('click', (event) => {
-    event.preventDefault();
-    
-    // Clear UI first
-    game_result.classList.add('hidden');
-    game_result.textContent = '';
-    result.textContent = '';
-    turn_indicator.textContent = '';
-    turn_indicator.classList.remove('pulse-text');
-    
-    // Reset the board visuals immediately for better UX
-    tiles.forEach(tile => {
-        tile.textContent = '';
-        tile.classList.remove('clicked', 'winning-tile', 'pulse-animation', 'shake-animation', 
-                             'opacity-80', 'x-symbol', 'o-symbol', 'last-move');
-        tile.removeAttribute('disabled');
-    });
-    
-    // Then tell the server to reset the game
-    resetGame();
-});
-
-// Socket event handlers
-socket.on('connect', () => {
-    console.log('Connected to websocket server');
-});
-
-socket.on('username_already_exists', () => {
-    showError('Username already exists!');
-});
-
-socket.on('game_full', () => {
-    showError('Game is currently full. Please try again later.');
-});
-
-socket.on('symbol_assigned', (symbol) => {
-    assignedSymbol = symbol;
-    resetErrors();
-    currentGameState = 'playing';
-    updateUIForGameState();
-});
-
-socket.on('players_list_update', (players) => {
+// Update player list display
+const updatePlayersList = (players) => {
     user_container.innerHTML = '';
+    
+    // Create header
     const header = document.createElement('h2');
     header.textContent = 'Players';
     header.className = 'text-xl font-bold mb-2 text-center';
     user_container.appendChild(header);
     
+    // Create player cards container
     const playersList = document.createElement('div');
     playersList.className = 'flex gap-4 justify-center mb-4';
     
-    Object.values(players).forEach((user, index) => {
+    // Add player cards
+    Object.values(players).forEach((user) => {
         const playerCard = document.createElement('div');
         playerCard.className = `player-card ${user.symbol === 'X' ? 'player-x' : 'player-o'} p-3 rounded-lg shadow-md transition-all duration-300`;
         
@@ -293,18 +251,14 @@ socket.on('players_list_update', (players) => {
         waitingMsg.textContent = 'Waiting for another player...';
         waitingMsg.className = 'text-center text-gray-600 animate-pulse';
         user_container.appendChild(waitingMsg);
-        
-        // Update game state to waiting
-        currentGameState = 'waiting';
-        updateUIForGameState();
-    } else if (playersCount === 2 && currentGameState !== 'ended') {
-        // If we have 2 players and game is not ended, we should be playing
-        currentGameState = 'playing';
-        updateUIForGameState();
     }
-});
+};
 
-socket.on('board_change', ({board, nextTurnSymbol, lastMove}) => {
+// Update board display based on server data
+const updateBoardDisplay = (board, nextTurnSymbol, lastMove) => {
+    // Store board data locally
+    boardData = board;
+    
     // Update turn indicator with animation
     const isYourTurn = nextTurnSymbol === assignedSymbol;
     turn_indicator.textContent = isYourTurn ? 'Your turn!' : 'Opponent\'s turn!';
@@ -316,13 +270,13 @@ socket.on('board_change', ({board, nextTurnSymbol, lastMove}) => {
         turn_indicator.classList.remove('pulse-text');
     }
     
-    // Update board
-    tiles.forEach(tile => {
+    // Update board tiles
+    document.querySelectorAll('.tile').forEach(tile => {
         const row = parseInt(tile.dataset.row) - 1;
         const col = parseInt(tile.dataset.col) - 1;
         const cellValue = board[row][col];
         
-        if (cellValue && tile.textContent !== cellValue) {
+        if (cellValue) {
             tile.textContent = cellValue;
             tile.classList.add('clicked');
             
@@ -334,77 +288,82 @@ socket.on('board_change', ({board, nextTurnSymbol, lastMove}) => {
                 tile.classList.add('o-symbol');
                 tile.classList.remove('x-symbol');
             }
-            
-            // Highlight the last move
-            if (lastMove && row === lastMove[0] && col === lastMove[1]) {
-                tile.classList.add('last-move');
-                setTimeout(() => {
-                    tile.classList.remove('last-move');
-                }, 1000);
-            }
+        } else {
+            // Clear empty cells
+            tile.textContent = '';
+            tile.classList.remove('clicked', 'x-symbol', 'o-symbol');
+        }
+        
+        // Highlight the last move if provided
+        if (lastMove && row === lastMove[0] && col === lastMove[1]) {
+            tile.classList.add('last-move');
+            setTimeout(() => {
+                tile.classList.remove('last-move');
+            }, 1000);
         }
     });
-});
+};
 
-socket.on('game_done', ({result, message, winningCombo}) => {
-    currentGameState = 'ended';
+// Update UI based on game state
+const updateUIForGameState = () => {
+    console.log(`Updating UI for game state: ${currentGameState}, isResetting: ${isResetting}`);
     
-    // Show game result with animation
-    if (result !== 'Draw') {
-        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in';
-        game_result.classList.add(result === 'X' ? 'bg-blue-500' : 'bg-red-500');
-        highlightWinningCombo(winningCombo);
-    } else {
-        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in bg-orange-500';
+    // Don't make UI changes during reset
+    if (isResetting) return;
+    
+    switch(currentGameState) {
+        case GAME_STATES.WAITING:
+            form_container.classList.remove('hidden');
+            board_container.classList.add('hidden');
+            restart_btn.classList.add('hidden');
+            game_result.classList.add('hidden');
+            turn_indicator.textContent = '';
+            break;
+            
+        case GAME_STATES.PLAYING:
+            form_container.classList.add('hidden');
+            board_container.classList.remove('hidden');
+            restart_btn.classList.remove('hidden');
+            game_result.classList.add('hidden');
+            enableClicks();
+            break;
+            
+        case GAME_STATES.ENDED:
+            form_container.classList.add('hidden');
+            board_container.classList.remove('hidden');
+            restart_btn.classList.remove('hidden');
+            preventClicks();
+            break;
+            
+        default:
+            // No changes for other states
+            break;
+    }
+};
+
+// Request game reset
+const requestGameReset = () => {
+    // Prevent multiple reset requests
+    if (isResetting) return;
+    
+    // Visual feedback that reset is happening
+    isResetting = true;
+    restart_btn.classList.add('opacity-50');
+    restart_btn.textContent = 'Resetting...';
+    
+    // Tell server we want to reset
+    socket.emit('reset_game');
+    
+    console.log('Reset requested');
+};
+
+// Handle confetti effect for winners
+const showConfetti = () => {
+    if (typeof window.confetti !== 'function') {
+        console.log('Confetti library not loaded');
+        return;
     }
     
-    game_result.textContent = message;
-    game_result.classList.remove('hidden');
-    
-    // Update result text
-    result.textContent = message;
-    
-    // Show confetti for winner
-    if (result === assignedSymbol) {
-        showConfetti();
-    }
-    
-    preventClicks();
-    updateUIForGameState();
-});
-
-socket.on('game_reset', () => {
-    // Fully reset the game state on server-initiated reset
-    resetGame();
-    
-    // Clear any lingering turn indicators and animations
-    turn_indicator.textContent = '';
-    turn_indicator.className = 'text-center mb-8';
-    turn_indicator.classList.remove('pulse-text');
-    result.textContent = '';
-    
-    // Re-enable the board for new game if we have 2 players
-    if (Object.keys(players).length >= 2) {
-        currentGameState = 'playing';
-    } else {
-        currentGameState = 'waiting';
-    }
-    
-    updateUIForGameState();
-});
-
-socket.on('player_disconnected', () => {
-    if (currentGameState === 'playing') {
-        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in bg-gray-500';
-        game_result.textContent = 'Your opponent disconnected!';
-        game_result.classList.remove('hidden');
-        currentGameState = 'ended';
-        updateUIForGameState();
-    }
-});
-
-// Confetti effect for winners
-function showConfetti() {
     const count = 200;
     const defaults = {
         origin: { y: 0.7 }
@@ -440,4 +399,166 @@ function showConfetti() {
         spread: 120,
         startVelocity: 45,
     });
-}
+};
+
+// Initialize game on load
+init();
+
+// Event listeners
+start_game_btn.addEventListener('click', startGame);
+restart_btn.addEventListener('click', (event) => {
+    event.preventDefault();
+    requestGameReset();
+});
+
+// Socket event handlers
+socket.on('connect', () => {
+    console.log('Connected to websocket server');
+});
+
+socket.on('initial_state', (data) => {
+    console.log('Received initial state:', data);
+    
+    // Set local game state from server
+    currentGameState = data.state;
+    players = data.players;
+    
+    // Update the UI
+    updatePlayersList(players);
+    updateUIForGameState();
+    
+    // If game is in progress, update the board
+    if (data.board && (currentGameState === GAME_STATES.PLAYING || currentGameState === GAME_STATES.ENDED)) {
+        updateBoardDisplay(data.board, data.nextTurnSymbol, null);
+    }
+});
+
+socket.on('game_state_update', (data) => {
+    console.log('Game state update:', data);
+    
+    // Update local state
+    currentGameState = data.state;
+    players = data.players;
+    
+    // Check if our symbol is still valid
+    let symbolStillValid = false;
+    Object.values(players).forEach(player => {
+        if (player.symbol === assignedSymbol) {
+            symbolStillValid = true;
+        }
+    });
+    
+    // Log symbol information if available
+    if (data.symbolInfo) {
+        console.log(`Symbol status - X assigned: ${data.symbolInfo.xAssigned}, O assigned: ${data.symbolInfo.oAssigned}`);
+    }
+    
+    // If our symbol is no longer valid (e.g. due to some edge case), show warning
+    if (assignedSymbol && !symbolStillValid && Object.keys(players).length > 0) {
+        console.warn(`Warning: Your symbol ${assignedSymbol} is no longer valid in the game!`);
+        
+        // Show error to user
+        showError(`There was a problem with your game symbol. Please refresh the page to rejoin.`);
+        
+        // Disable board interaction
+        preventClicks();
+    }
+    
+    // Update player list
+    updatePlayersList(players);
+    
+    // Update UI based on new state
+    updateUIForGameState();
+});
+
+socket.on('username_already_exists', () => {
+    showError('Username already exists!');
+});
+
+socket.on('game_full', () => {
+    showError('Game is currently full. Please try again later.');
+});
+
+socket.on('try_again', (data) => {
+    showError(data.message);
+});
+
+socket.on('symbol_assigned', (symbol) => {
+    assignedSymbol = symbol;
+    resetErrors();
+});
+
+socket.on('board_change', (data) => {
+    updateBoardDisplay(data.board, data.nextTurnSymbol, data.lastMove);
+});
+
+socket.on('game_done', (data) => {
+    // Show game result with animation
+    if (data.result !== 'Draw') {
+        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in';
+        game_result.classList.add(data.result === 'X' ? 'bg-blue-500' : 'bg-red-500');
+        highlightWinningCombo(data.winningCombo);
+    } else {
+        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in bg-orange-500';
+    }
+    
+    game_result.textContent = data.message;
+    game_result.classList.remove('hidden');
+    
+    // Update result text
+    result.textContent = data.message;
+    
+    // Show confetti for winner
+    if (data.result === assignedSymbol) {
+        showConfetti();
+    }
+});
+
+socket.on('game_resetting', () => {
+    console.log('Server is resetting the game');
+    
+    // Visual feedback
+    isResetting = true;
+    game_result.classList.add('hidden');
+    turn_indicator.classList.remove('pulse-text');
+    turn_indicator.textContent = 'Game is resetting...';
+    
+    // Complete client-side reset
+    completeReset();
+});
+
+socket.on('game_reset_complete', () => {
+    console.log('Game reset complete');
+    
+    // Reset local flags
+    isResetting = false;
+    
+    // Reset button appearance
+    restart_btn.classList.remove('opacity-50');
+    restart_btn.textContent = 'New Game';
+});
+
+socket.on('player_disconnected', (data) => {
+    // Show notification if we're in a game
+    if (currentGameState === GAME_STATES.PLAYING || currentGameState === GAME_STATES.ENDED) {
+        game_result.className = 'p-4 rounded-lg mb-8 mt-8 min-w-md text-center text-white font-bold text-xl fade-in bg-gray-500';
+        
+        // Show more specific message if we have details
+        if (data && data.message) {
+            game_result.textContent = data.message;
+        } else {
+            game_result.textContent = 'Your opponent disconnected!';
+        }
+        
+        game_result.classList.remove('hidden');
+        
+        // Update text indicator
+        turn_indicator.textContent = 'Waiting for a new player';
+        turn_indicator.className = 'text-center mb-8 text-gray-600';
+        
+        // Log which player left if we have that info
+        if (data && data.playerSymbol) {
+            console.log(`Player with symbol ${data.playerSymbol} disconnected`);
+        }
+    }
+});
